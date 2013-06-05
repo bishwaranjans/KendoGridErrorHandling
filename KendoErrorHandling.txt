@@ -1,0 +1,99 @@
+ERROR HANDLING IN KENDO GRID with WCF SERVICE/WEB API
+-----------------------------------------------------
+
+Kendo UI has a nice a widget 'Kendo Grid' which displays data in a tabular format and offers rich support for interacting with data; including paging, sorting, grouping, and selection. Here in this tip mainly we will concentrate upon how to handle the exceptions which are thrown at the server side during data manipulation in a kendo grid.
+
+Suppose there is a situation where the data which are being posted from kendo grid to server side is not valid or some error occured during the CRUD  opeartion. Then in that case we need to handle the error in the server side and we need to inform the user at the client side about the failed CRUD opeartion.
+
+There are two cases here. First one is if  we are using wcf service with kendo grid and another one is kendo ui grid with web api for the CRUD opeartion.
+
+Case 1: Error handling with wcf service -
+---------------------------------------
+
+If we are using WCF service for CRUD opreation, then we need to throw WebFaultException in our code and we have to catch that exception in the Kendo UI grid.
+e.g.
+ [OperationContract]
+ [WebInvoke(Method = "POST", RequestFormat = WebMessageFormat.Json, ResponseFormat = WebMessageFormat.Json, BodyStyle = WebMessageBodyStyle.WrappedRequest)]
+ public Employee InsertEmployee(Employee employee)
+        {
+            try
+            {
+                // Code to insert employee object
+            }
+            catch (Exception ex)
+            {
+                // Log the error into the log table
+                ErroirLog.Error("Error in inserting employee.", ex);
+
+                // Throw error 
+                throw new WebFaultException<string>("Unable to insert the emplyee.Some error has occured.Please try again.", HttpStatusCode.InternalServerError);
+            }
+        }
+
+		Here in the above method if some error occurs during insertion of employee, then it will be handled by catch block.
+		In the catch block, we are inserting the error details and raising WebFaultException with our custom error message and error code.
+		Now this exception will be caught by kendo UI grid along with our custom error message and error code and we  can display the error message to the user and cancel the kendo UI grid changes. The code for this will be explained later on. Lets go for the second case.
+
+Case 2: Error handling with Web Api -
+------------------------------------
+	In case of WebApi, we have to throw HttpResponseException in our code.
+e.g. 
+    [HttpPost]
+   	public Employee PostEmployee(Employee employee)
+        {
+            try
+            {
+                // Code to insert employee object
+            }
+            catch (Exception ex)
+            {
+                // Log the error into the log table
+                ErroirLog.Error("Error in inserting employee.", ex);
+
+                // Throw error 
+                throw new HttpResponseException(Request.CreateResponse(HttpStatusCode.InternalServerError, "Unable to insert the emplyee.Some error has occured.Please try again."));
+            }
+        }
+
+Now we have raised exceptions in our code with our custom message.These exceptions now need to handled at the Kendo UI Grid.
+
+Why we are raising these exceptions? It is because if we don’t throw the error, the user would never know that the CRUD operation failed.
+So to notify the user that the CRUD opeartion failed, we need to raise these exceptions.
+
+Error handling in Kendo UI Grid -
+---------------------------------
+Now let's see how we can handle the exception at kendo grid.
+
+ $("#divGrid").kendoGrid({
+            dataSource:
+                {
+					// We can add this error section in the kendo grid data source
+					// Here we can get the custom error message and response code and show that message to the user
+					// To rollback the kendo grid we then need to cancel the changes made to it
+                    error: function (e) {
+
+                        var msg = e.xhr.responseText;
+
+                        // Cancel the whatever changes has done to kendo grid
+                        $("#divGrid").data('kendoGrid').cancelChanges();
+
+                        // Show the message to user
+                        alert(msg);
+                    },
+                    schema: {
+                        model: {
+                            // define the model of the data source. Required for validation and property types.
+                          }
+                    },
+                    transport: {
+                      // define read,update,insert and delete url here
+                    }
+                },
+			});
+
+Wrap Up
+------------------------------------
+We have now learnt how to do handle error in Kendo UI Grid with our custom message.
+Hope this will help.Download this tip from Github. https://github.com/bishwaranjans/KendoErrorhandling
+
+Happy coding :)
